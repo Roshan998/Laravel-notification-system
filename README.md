@@ -1,64 +1,412 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+### Laravel Notification system API using redis
+---
+## Setup Instructions:
+- git clone https://github.com/Roshan998/Laravel-notification-system.git
+- cd Laravel-notification-system
+- composer install (PHP 8.3)
+- cp .env.example .env
+- php artisan key:generate
+- update in .env
+```json
+DB_DATABASE=your_database
+DB_USERNAME=root
+DB_PASSWORD=
+```
+- update Queue Configuration in .env (first you need to install redis server)
+```json
+QUEUE_CONNECTION=redis
+CACHE_DRIVER=redis
+```
+-update mail host in .env
+```json
+MAIL_MAILER=smtp
+MAIL_HOST=
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=
+MAIL_FROM_NAME="${APP_NAME}
+```
+-run:
+```json
+php artisan migrate --seed 
+install npm && npm run dev (need node version 16)
+php artisan serve;
+php artisan queue:work;
+```
 
-## About Laravel
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Overview
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+This project implements a production-ready **Notification System API** built with Laravel.It is designed to simulate a scalable system similar to AgentCIS CRM, which handles high traffic (50–60 requests per second) across multiple tenants and workflows.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+The system demonstrates:
 
-## Learning Laravel
+- Asynchronous queue processing
+- Rate limiting (10 notifications per user per hour)
+- Caching for optimized monitoring endpoints
+- Clean layered architecture
+- Retry logic with failure handling
+- Unit & Feature testing
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Architecture
 
-## Laravel Sponsors
+The application follows a clean layered architecture:
+```json
+    Controller → Service → Repository → Model → Queue Job
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+## Key Design Goals
 
-### Premium Partners
+- Separation of concerns
+- Scalable async processing
+- Efficient database usage
+- Extensibility for future notification types
+- High test coverage
+- Production-ready patterns
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+## Features Implemented
 
-## Contributing
+## 1.Publish Notifications
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**POST** `/api/notifications`
 
-## Code of Conduct
+- Validates request
+- Verifies user exists
+- Stores notification in database
+- Dispatches queue job
+- Applies rate limiting (10/hour per user)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## header: 
+```json
+{
+    Authorization:Bearer <token>
+    Content-Type:application/json
+}
+```
+## body: (Raw)  
+```json 
+{
+    "type": "email",
+    "title": "New notification Alert!!!",
+    "message": "This is to infom you that this system works well!!",
+    "payload": {
+        "extra": "data"
+    },
+    "user_id":2
+}
+```
 
-## Security Vulnerabilities
+## Queue Processing
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- Uses Laravel Queue system (Redis or Database)
+- Job: `ProcessNotification`
+- Simulates sending via logging
+- Updates notification status:
+  - `pending`
+  - `sent`
+  - `failed`
 
-## License
+## 3️. Monitoring APIs
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## (i).Recent Notifications
+**GET** `/api/notifications/recent`
+
+- Returns latest 20 notifications
+- Cached for 30 seconds
+
+## header: 
+```json
+{
+    Authorization:Bearer <token>
+    Content-Type:application/json
+}
+```
+
+
+## (ii).Summary API
+**GET** `/api/notifications/summary`
+
+## header: 
+```json
+{
+    Authorization:Bearer <token>
+    Content-Type:application/json
+}
+```
+
+## Returns:
+``` json
+{
+"sent": 120,
+"failed": 5,
+"pending": 8
+}
+```
+
+## Api to gettoken
+**Post** `/api/login`
+## body (form-data)
+```json
+{
+    email:user10@sharklasers.com
+    password:password
+}
+```
+## return
+```json
+{
+    token: 1|WRXNJbAzpx18qPeEjFzbAFYPZQMLUCDjhbPM0nc8
+}
+```
+-copy only WRXNJbAzpx18qPeEjFzbAFYPZQMLUCDjhbPM0nc8
+
+
+## Authentication
+
+-Laravel Sanctum
+-All notification endpoints require authentication
+-Bearer token required
+
+## Rate Limiting
+
+-10 notifications per user per hour
+-Implemented using Laravel throttle middleware
+-Returns 429 Too Many Requests if exceeded
+
+# Testing
+
+-Run all tests:
+```json
+php artisan test
+```
+
+## Design Decisions
+
+This section explains the architectural choices and design patterns used in this implementation.
+
+---
+
+## 1️ Why Queue-Based Processing?
+
+The system uses Laravel Queues with Redis to process notifications asynchronously.
+
+### Reason:
+- Keeps API responses fast and non-blocking
+- Supports high traffic (50–60 RPS scenario)
+- Prevents request timeout during external operations
+- Improves scalability under load
+
+This aligns with production-grade distributed system design.
+
+---
+
+## 2️ Why Redis?
+
+Redis is used for:
+
+- Queue backend
+- Caching
+- Rate limiting
+
+### Reason:
+- In-memory data store → extremely fast
+- Ideal for high-throughput environments
+- Reduces database load
+- Provides atomic operations (useful for throttling)
+
+Redis ensures performance and scalability.
+
+---
+
+## 3️ Layered Architecture (Controller → Service → Repository → Model)
+
+The project follows a clean separation of concerns:
+
+- **Controller** → Handles HTTP layer
+- **Service Layer** → Business logic
+- **Repository Layer** → Database access abstraction
+- **Model** → Eloquent ORM entity
+- **Job** → Async processing
+
+### Benefits:
+- Maintainability
+- Testability
+- Scalability
+- Clear responsibility boundaries
+
+This makes the system easier to extend and refactor.
+
+---
+
+## 4️ Caching Strategy
+
+Endpoints:
+- `/notifications/recent`
+- `/notifications/summary`
+
+are cached for 30 seconds.
+
+### Reason:
+- These are read-heavy endpoints
+- Prevents repeated expensive database queries
+- Reduces database load under traffic spikes
+- Improves response time
+
+Cache invalidation is time-based to balance freshness and performance.
+
+---
+
+## 5️ Rate Limiting (10 Notifications per User per Hour)
+
+Implemented using Laravel throttle middleware.
+
+### Reason:
+- Prevent abuse or spamming
+- Protect system resources
+- Simulate production constraints
+
+Redis-backed throttling ensures atomic and fast counting.
+
+---
+
+## 6️ Retry & Failure Handling
+
+Queue jobs support retry attempts.
+
+### Reason:
+- Transient failures (network issues, service downtime)
+- Improves reliability
+- Ensures eventual consistency
+
+Failed jobs are marked in the database for monitoring.
+
+---
+
+## 7️ Status Tracking Design
+
+Notification lifecycle states:
+
+- `pending`
+- `sent`
+- `failed`
+
+### Reason:
+- Enables monitoring
+- Makes system observable
+- Supports reporting and analytics
+
+---
+
+## 8️ Use of Laravel Sanctum
+
+Authentication is implemented via token-based authentication.
+
+### Reason:
+- Stateless API design
+- Suitable for SPA or mobile clients
+- Secure and lightweight
+
+---
+
+## 9️ Extensibility Considerations
+
+The system is structured to support future extensions:
+
+- Email channel
+- SMS channel
+- Push notifications
+- Webhooks
+- Scheduled notifications
+
+The architecture allows easy introduction of Strategy Pattern for channel handling.
+
+---
+
+## Assumptions
+
+The following assumptions were made during development:
+
+---
+
+## 1️ Users Already Exist
+
+The system assumes users are pre-created and stored in the database.
+
+Notification publishing requires a valid `user_id`.
+
+---
+
+## 2️ Notification Sending is Simulated
+
+Actual external email/SMS service integration is not implemented.
+
+Instead:
+- Notification sending is simulated using logs
+- This keeps focus on architecture and queue design
+
+---
+
+## 3️ Single-Tenant Environment
+
+The current implementation assumes a single-tenant system.
+
+Multi-tenant support can be added by:
+- Adding `tenant_id` to notifications
+- Scoping queries by tenant
+
+---
+
+## 4️ Rate Limit Scope
+
+Rate limiting is scoped per authenticated user.
+
+Global rate limiting is not implemented.
+
+---
+
+## 5️ Cache Expiration Strategy
+
+Cache uses time-based expiration (30 seconds).
+
+Advanced invalidation strategies (event-driven cache busting) are not implemented for simplicity.
+
+---
+
+## 6️ No Distributed Worker Scaling
+
+The implementation runs a single queue worker locally.
+
+In production:
+- Multiple workers
+- Supervisor process management
+- Horizontal scaling
+
+would be used.
+
+---
+
+## 7️ No Event Sourcing
+
+The system updates notification status directly in the database.
+
+Event sourcing pattern was not implemented but could be added in future.
+
+---
+
+## Conclusion
+
+The architectural decisions prioritize:
+
+- Scalability
+- Performance
+- Clean code principles
+- Maintainability
+- Extensibility
+- Production-readiness
+
+The system design aligns with modern Laravel best practices and high-traffic CRM requirements.
+
